@@ -5,7 +5,7 @@
 </h2>
 <br>
 <h2 align="center">
-   CRYPTOGRAPHY AND CYBER SECURITY
+   MÃ HOÁ VÀ GIẢI MÃ BẰNG THUẬT TOÁN AES
 </h2>
 <br>
 <div align="center">
