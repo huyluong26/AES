@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mã hóa / Giải mã File AES</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+            color: #333;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 10px;
+        }
+        
+        .container {
+            max-width: 520px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+            padding: 30px 40px 40px;
+            width: 100%;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 24px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 10px #355a96aa;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            cursor: pointer;
+            background: #eceff1;
+            color: #556080;
+            user-select: none;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: #355a96;
+            color: white;
+            box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.25);
+        }
+        
+        form {
+            display: none;
+            flex-direction: column;
+        }
+        
+        form.active {
+            display: flex;
+        }
+        
+        label {
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+        
+        input[type="text"],
+        input[type="password"] {
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 2px solid #d3d9e2;
+            outline: none;
+            font-size: 15px;
+            margin-bottom: 22px;
+            transition: border-color 0.3s ease;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: #355a96;
+        }
+        
+        button {
+            background: #355a96;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            user-select: none;
+        }
+        
+        button:hover {
+            background: #2e4780;
+        }
+        
+        #message {
+            margin-top: 20px;
+            font-weight: 600;
+            min-height: 24px;
+            text-align: center;
+            user-select: none;
+        }
+        
+        #downloadLink {
+            display: block;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 600;
+            color: #2980b9;
+            cursor: pointer;
+            word-break: break-all;
+            user-select: text;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" role="main" aria-label="Mã hóa và giải mã AES cho file">
+        <h1>Mã hóa / Giải mã File AES</h1>
+        <div class="tabs" role="tablist">
+            <div class="tab active" role="tab" aria-selected="true" tabindex="0" id="tab-encrypt">Mã hóa</div>
+            <div class="tab" role="tab" aria-selected="false" tabindex="-1" id="tab-decrypt">Giải mã</div>
+        </div>
+
+        <form id="encryptForm" class="active" aria-labelledby="tab-encrypt">
+            <label for="encryptFile">Chọn file cần mã hóa:</label>
+            <input type="file" id="encryptFile" accept="*/*" aria-required="true" />
+            <label for="encryptKey">Nhập khóa mã hóa:</label>
+            <input type="password" id="encryptKey" placeholder="Khóa tự do, sẽ được mã hóa SHA-256" aria-required="true" />
+            <button type="button" id="encryptBtn">Mã hóa và tải file</button>
+            <div id="encryptMessage" role="alert"></div>
+        </form>
+
+        <form id="decryptForm" aria-labelledby="tab-decrypt">
+            <label for="decryptFile">Chọn file cần giải mã:</label>
+            <input type="file" id="decryptFile" accept="*/*" aria-required="true" />
+            <label for="decryptKey">Nhập khóa giải mã:</label>
+            <input type="password" id="decryptKey" placeholder="Phải đúng khóa đã dùng mã hóa" aria-required="true" />
+            <button type="button" id="decryptBtn">Giải mã và tải file</button>
+            <div id="decryptMessage" role="alert"></div>
+        </form>
+    </div>
+
+    <script>
+        (() => {
+            const tabEncrypt = document.getElementById('tab-encrypt');
+            const tabDecrypt = document.getElementById('tab-decrypt');
+            const formEncrypt = document.getElementById('encryptForm');
+            const formDecrypt = document.getElementById('decryptForm');
+
+            function switchTab(toEncrypt) {
+                if (toEncrypt) {
+                    tabEncrypt.classList.add('active');
+                    tabDecrypt.classList.remove('active');
+                    tabEncrypt.setAttribute('aria-selected', 'true');
+                    tabDecrypt.setAttribute('aria-selected', 'false');
+                    tabEncrypt.tabIndex = 0;
+                    tabDecrypt.tabIndex = -1;
+                    formEncrypt.classList.add('active');
+                    formDecrypt.classList.remove('active');
+                } else {
+                    tabEncrypt.classList.remove('active');
+                    tabDecrypt.classList.add('active');
+                    tabEncrypt.setAttribute('aria-selected', 'false');
+                    tabDecrypt.setAttribute('aria-selected', 'true');
+                    tabEncrypt.tabIndex = -1;
+                    tabDecrypt.tabIndex = 0;
+                    formEncrypt.classList.remove('active');
+                    formDecrypt.classList.add('active');
+                }
+            }
+
+            tabEncrypt.addEventListener('click', () => switchTab(true));
+            tabDecrypt.addEventListener('click', () => switchTab(false));
+            tabEncrypt.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    switchTab(true);
+                }
+            });
+            tabDecrypt.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    switchTab(false);
+                }
+            });
+
+            // Crypto helper functions
+            async function getKeyMaterial(password) {
+                const enc = new TextEncoder();
+                return window.crypto.subtle.importKey(
+                    'raw',
+                    enc.encode(password), {
+                        name: 'PBKDF2'
+                    },
+                    false, ['deriveBits', 'deriveKey']
+                );
+            }
+
+            async function deriveKey(password, salt) {
+                const keyMaterial = await getKeyMaterial(password);
+                // Derive a 256-bit key using PBKDF2 with SHA-256 and 250,000 iterations for good security
+                return window.crypto.subtle.deriveKey({
+                        name: 'PBKDF2',
+                        salt: salt,
+                        iterations: 250000,
+                        hash: 'SHA-256'
+                    },
+                    keyMaterial, {
+                        name: 'AES-GCM',
+                        length: 256
+                    },
+                    false, ['encrypt', 'decrypt']
+                );
+            }
+
+            function bufToHex(buffer) {
+                return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+
+            function hexToBuf(hex) {
+                if (hex.length % 2 !== 0) throw new Error("Invalid hex string");
+                const buffer = new Uint8Array(hex.length / 2);
+                for (let i = 0; i < buffer.length; i++) {
+                    buffer[i] = parseInt(hex.substr(i * 2, 2), 16);
+                }
+                return buffer.buffer;
+            }
+
+            // Encrypt file content (ArrayBuffer) using AES-GCM
+            async function encryptData(password, data) {
+                try {
+                    const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                    const key = await deriveKey(password, salt);
+                    const encrypted = await window.crypto.subtle.encrypt({
+                            name: 'AES-GCM',
+                            iv: iv
+                        },
+                        key,
+                        data
+                    );
+                    // Return concatenated salt + iv + ciphertext as ArrayBuffer
+                    const result = new Uint8Array(salt.byteLength + iv.byteLength + encrypted.byteLength);
+                    result.set(salt, 0);
+                    result.set(iv, salt.byteLength);
+                    result.set(new Uint8Array(encrypted), salt.byteLength + iv.byteLength);
+                    return result.buffer;
+                } catch (e) {
+                    throw e;
+                }
+            }
+
+            // Decrypt file content (ArrayBuffer) using AES-GCM
+            async function decryptData(password, data) {
+                try {
+                    const salt = data.slice(0, 16);
+                    const iv = data.slice(16, 28);
+                    const ciphertext = data.slice(28);
+                    const key = await deriveKey(password, salt);
+                    const decrypted = await window.crypto.subtle.decrypt({
+                            name: 'AES-GCM',
+                            iv: iv
+                        },
+                        key,
+                        ciphertext
+                    );
+                    return decrypted;
+                } catch (e) {
+                    throw e;
+                }
+            }
+
+            // Utility function to read file as ArrayBuffer
+            function readFileAsArrayBuffer(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => reject(reader.error);
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            // Trigger download file from ArrayBuffer
+            function downloadArrayBuffer(buffer, filename) {
+                const blob = new Blob([buffer]);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+            }
+
+            // Handle encrypt button click
+            document.getElementById('encryptBtn').addEventListener('click', async() => {
+                const fileInput = document.getElementById('encryptFile');
+                const keyInput = document.getElementById('encryptKey');
+                const message = document.getElementById('encryptMessage');
+                message.style.color = '#e74c3c';
+                message.textContent = '';
+
+                if (!fileInput.files.length) {
+                    message.textContent = "Vui lòng chọn file để mã hóa.";
+                    return;
+                }
+                if (!keyInput.value) {
+                    message.textContent = "Vui lòng nhập khóa mã hóa.";
+                    return;
+                }
+                const file = fileInput.files[0];
+                if (file.size > 50 * 1024 * 1024) { // 50MB giới hạn an toàn tối ưu
+                    message.textContent = "File quá lớn (>50MB). Vui lòng chọn file nhỏ hơn.";
+                    return;
+                }
+                try {
+                    message.textContent = "Đang mã hóa... Vui lòng đợi.";
+                    const fileData = await readFileAsArrayBuffer(file);
+                    const encrypted = await encryptData(keyInput.value, fileData);
+                    const outName = file.name + ".aes";
+                    downloadArrayBuffer(encrypted, outName);
+                    message.style.color = '#27ae60';
+                    message.textContent = `Mã hóa thành công! File "${outName}" đã được tải xuống.`;
+                } catch (e) {
+                    message.textContent = 'Lỗi khi mã hóa file: ' + e.message;
+                }
+            });
+
+            // Handle decrypt button click
+            document.getElementById('decryptBtn').addEventListener('click', async() => {
+                const fileInput = document.getElementById('decryptFile');
+                const keyInput = document.getElementById('decryptKey');
+                const message = document.getElementById('decryptMessage');
+                message.style.color = '#e74c3c';
+                message.textContent = '';
+
+                if (!fileInput.files.length) {
+                    message.textContent = "Vui lòng chọn file để giải mã.";
+                    return;
+                }
+                if (!keyInput.value) {
+                    message.textContent = "Vui lòng nhập khóa giải mã.";
+                    return;
+                }
+                const file = fileInput.files[0];
+                if (file.size > 100 * 1024 * 1024) { // 100MB giới hạn
+                    message.textContent = "File quá lớn (>100MB). Vui lòng chọn file nhỏ hơn.";
+                    return;
+                }
+                try {
+                    message.textContent = "Đang giải mã... Vui lòng đợi.";
+                    const fileData = await readFileAsArrayBuffer(file);
+                    const decrypted = await decryptData(keyInput.value, fileData);
+                    // Gỡ .aes nếu có
+                    let outName = file.name.replace(/\.aes$/i, '');
+                    if (outName === file.name) {
+                        outName = "decrypted_" + file.name;
+                    }
+                    downloadArrayBuffer(decrypted, outName);
+                    message.style.color = '#27ae60';
+                    message.textContent = `Giải mã thành công! File "${outName}" đã được tải xuống.`;
+                } catch (e) {
+                    message.textContent = 'Lỗi khi giải mã file: Khóa sai hoặc file không hợp lệ.';
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>
