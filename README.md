@@ -10,6 +10,6 @@
 <br>
 <div align="center">
     <p align="center">
-        <img src="ThuattoanAES.jpg" alt="AIoTLab Logo" width="340"/>
+        <img src="ThuattoanAES.jpg" alt="AIoTLab Logo" width="680"/>
     </p>
 </div>
